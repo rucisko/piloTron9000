@@ -8,7 +8,7 @@
   // zapojení čidla https://i.imgur.com/q9Abr6r.png
   // datum 18.02.2021
   // verze
-  String ver = "v0.76 beta";
+  String ver = "v0.77 beta";
 
 // ******************************************************************************
 // ******************************************************************************
@@ -17,13 +17,13 @@
   // PIN NUMBER SETUP
   
   // relay pin setup
-  int relayUp = 12;
-  int relayDown = 13;
+  int relayUp = 11;
+  int relayDown = 12;
   
   // buttons
-  int butPin_up = 6; // nahoru / přidat
-  int butPin_down = 7; // dolu / ubrat
-  int butPin_stepSet = 8; // nastavení kroku
+  int butPin_up = 5; // nahoru / přidat
+  int butPin_down = 6; // dolu / ubrat
+  int butPin_stepSet = 7; // nastavení kroku
   
   // end switches
   int butPin_lowerEndSwitch = 9; // dolní koncový spínač
@@ -458,7 +458,7 @@ void loop() {
         }
         
   } else { // button not pressed
-    butState_engageUp = 0;
+        butState_engageUp = 0;
   }
 
 
@@ -500,7 +500,7 @@ void loop() {
         }
 
   } else { // button not pressed
-    butState_engageDown = 0;
+        butState_engageDown = 0;
   }
 
 // ******************************************************************************
@@ -516,29 +516,29 @@ void loop() {
 
   // step setting indicator
   if (reading_stepSet != initButState_stepSet){
-        lcd.setCursor(14,0);
-        lcd.write(byte(6));
+      lcd.setCursor(14,0);
+      lcd.write(byte(6));
   } else {
-        lcd.setCursor(14,0);
-        lcd.print(" ");
+      lcd.setCursor(14,0);
+      lcd.print(" ");
   }
 
   // up direction indication
   if (reading_upperEndSwitch == initButState_upperEndSwitch){
-          lcd.setCursor(15,0);
-          lcd.write(byte(0));
+      lcd.setCursor(15,0);
+      lcd.write(byte(0));
   } else if (reading_upperEndSwitch != initButState_upperEndSwitch) {
-          lcd.setCursor(15,0);
-          lcd.write(byte(1));
+      lcd.setCursor(15,0);
+      lcd.write(byte(1));
   }
 
   // down direction indication
   if (reading_lowerEndSwitch == initButState_lowerEndSwitch){
-          lcd.setCursor(15,1);
-          lcd.write(byte(2));
+      lcd.setCursor(15,1);
+      lcd.write(byte(2));
   } else if (reading_lowerEndSwitch != initButState_lowerEndSwitch) {
-          lcd.setCursor(15,1);
-          lcd.write(byte(3));
+      lcd.setCursor(15,1);
+      lcd.write(byte(3));
   }
 
 // ******************************************************************************
