@@ -6,9 +6,9 @@
   // kontrolní jednotka pásové pily
   // zapojení https://imgur.com/7aSZtCA
   // zapojení čidla https://i.imgur.com/q9Abr6r.png
-  // datum 17.02.2021
+  // datum 18.02.2021
   // verze
-  String ver = "v0.73";
+  String ver = "v0.76 beta";
 
 // ******************************************************************************
 // ******************************************************************************
@@ -23,11 +23,11 @@
   // buttons
   int butPin_up = 6; // nahoru / přidat
   int butPin_down = 7; // dolu / ubrat
-  int butPin_stepSet = 8; // nastaveni kroku
+  int butPin_stepSet = 8; // nastavení kroku
   
   // end switches
-  int butPin_lowerEndSwitch = 9; // doraz dolni
-  int butPin_upperEndSwitch = 10; // doraz horni
+  int butPin_lowerEndSwitch = 9; // dolní koncový spínač
+  int butPin_upperEndSwitch = 10; // horní koncový spínač
   
   // encoder pins
   int encoderA = 2;
@@ -39,31 +39,26 @@
 
   // GLOBAL VARIABLE SETUP
   
-  // stepSet limit mm
+  // stepSet limit [mm]
   int stepLimit = 400;
 
-  // default over cut value
+  // default over cut value [mm]
   int defaultOvercut = 4;
 
-  // endSwitch triggers
-  volatile bool enableUp;
-  volatile bool enableDown;
+  // end triggers
+  volatile bool enableUp = false;
+  volatile bool enableDown = false;
 
-  // endSwitch states
-  volatile int upState = LOW;
-  volatile int downState = LOW;
-
-  // step tolerance mm
-  float tolerance = 0;
+  // step tolerance [imp.]
+  float const tolerance = 0;
 
   // step upper bound init
   volatile int countLimit;
 
   //TEMPORARY - NEEDS FIXING:
-  
-  // conversion factor [impulses per milimeter]
-  float convUp = 20.30;
-  float convDown = 21.70;
+  // conversion factor [imp./mm]
+  float const convUp = 20.30;
+  float const convDown = 21.70;
   
 
 // ******************************************************************************
@@ -194,16 +189,16 @@
   int butState_up = 0;
   int butState_down = 0;
   int butState_stepSet = 0;
-  int butState_adjUp = 0;
-  int butState_adjDown = 0;
+  int butState_engageUp = 0;
+  int butState_engageDown = 0;
 
-  // init button debounce timestamps
+  // init butt debounce timestamps
   unsigned long timeStamp_up;
   unsigned long timeStamp_down;
-  unsigned long timeStamp_adjUp;
-  unsigned long timeStamp_adjDown;
+  unsigned long timeStamp_engageUp;
+  unsigned long timeStamp_engageDown;
 
-  // fast input hold down delay
+  // global push hold down delay [ms]
   int dly = 500;
 
 // ******************************************************************************
@@ -228,7 +223,7 @@
 // ******************************************************************************
 // ******************************************************************************
 
-  // COUNTERS INITIALIZATION
+  // VALUES & COUNTERS INITIALIZATION
 
   int stepValue = 0;
   int overCutValue = defaultOvercut;
@@ -267,8 +262,12 @@ void setup() {
   lcd.begin(16,2);
 
   // flash screen
-  lcd.print(ver);
-  delay(1000);
+  lcd.setCursor(0,0);
+  lcd.print(" piloTron  9000 ");
+  lcd.setCursor(0,1);
+  lcd.print("   "+ver);
+  delay(2000);
+  lcd.clear();
 
   // lcd custom chars load
   lcd.createChar(0,horniOK);
@@ -290,7 +289,7 @@ void setup() {
 // ******************************************************************************
 // ******************************************************************************
 
-  // PIN MODES
+  // PIN MODE
   
   // button pinMode
   pinMode(butPin_up,INPUT_PULLUP);
@@ -323,33 +322,6 @@ void setup() {
   // RELAY INITIALIZATION
   digitalWrite(relayUp,LOW); 
   digitalWrite(relayDown,LOW); 
-
-// ******************************************************************************
-// ******************************************************************************
-// ******************************************************************************
-
-  // GET INITIAL ENDSWITCH STATES
-
-  // upper end switch
-  reading_upperEndSwitch = digitalRead(butPin_upperEndSwitch);
-    if (reading_upperEndSwitch == initButState_upperEndSwitch){
-      enableUp = true;
-    } else {
-      enableUp = false;
-    }
-
-  // lower end switch
-  reading_lowerEndSwitch = digitalRead(butPin_lowerEndSwitch);
-    if (reading_lowerEndSwitch == initButState_lowerEndSwitch){
-      enableDown = true;
-    } else {
-      enableDown = false;
-    }
-
-  // end switch states serial print
-  Serial.println(enableUp);
-  Serial.println(enableDown);
-
 
 // ******************************************************************************
 // ******************************************************************************
@@ -399,8 +371,7 @@ void loop() {
         if (butState_up == 0){
             butState_up = 1;
             timeStamp_up = millis();
-        }    
-        
+        }        
         if (millis() - timeStamp_up < dly){
             stepValue = stepValue + 1;
             delay(100);         
@@ -423,22 +394,21 @@ void loop() {
       reading_stepSet != initButState_stepSet &&
       reading_up == initButState_up &&
       stepValue > 0){
-         if (butState_down == 0){
-             butState_down = 1;
-             timeStamp_down = millis();
-         }    
-         
-         if (millis() - timeStamp_down < dly){
-             stepValue = stepValue - 1;
-             delay(100);           
-             Serial.println("si nastavil krok dule");
-             Serial.println(stepValue);
-         } else if (millis() - timeStamp_down > dly){
-             stepValue = stepValue - 1;
-             delay(10);      
-             Serial.println("si nastavil krok dule jak cyp");
-             Serial.println(stepValue);
-         }         
+        if (butState_down == 0){
+            butState_down = 1;
+            timeStamp_down = millis();
+        }    
+        if (millis() - timeStamp_down < dly){
+            stepValue = stepValue - 1;
+            delay(100);           
+            Serial.println("si nastavil krok dule");
+            Serial.println(stepValue);
+        } else if (millis() - timeStamp_down > dly){
+            stepValue = stepValue - 1;
+            delay(10);      
+            Serial.println("si nastavil krok dule jak cyp");
+            Serial.println(stepValue);
+        }         
   } else {
     // button not pressed
     butState_down = 0;
@@ -457,27 +427,40 @@ void loop() {
       reading_upperEndSwitch == initButState_upperEndSwitch &&
       stepValue != 0){
 
-        Serial.println("START");
-
-        count = 0; // count reset
-        countLimit = (stepValue+overCutValue)*convUp + tolerance;
-
-        enableUp = true;
-        interrupts();
-
-        while (enableUp == true){
-          digitalWrite(relayUp, HIGH);
-
-          if (digitalRead(butPin_upperEndSwitch) != initButState_upperEndSwitch){
-            enableUp = false;      
-          }
+        if (butState_engageUp == 0){
+            butState_engageUp = 1;
+            timeStamp_engageUp = millis();
         }
-
-      digitalWrite(relayUp, LOW);
-      
-      Serial.println(count);
-      Serial.println("STOP-UP");
+        if (millis() - timeStamp_engageUp > dly/2.5){
+            Serial.println("START");
+            count = 0; // count reset
+            countLimit = (stepValue+overCutValue)*convUp + tolerance;
+            enableUp = true;
+            interrupts();
+    
+            while (enableUp == true){
+                digitalWrite(relayUp, HIGH);             
+                // lower endswitch release indication
+                lcd.setCursor(15,1);
+                lcd.write(byte(2));
+                // step engage indication
+                lcd.setCursor(15,0);
+                lcd.write(byte(4));
+                
+                if (digitalRead(butPin_upperEndSwitch) != initButState_upperEndSwitch){
+                    enableUp = false;      
+                }
+            }
+            digitalWrite(relayUp, LOW);
+          
+            Serial.println(count);
+            Serial.println("STOP-UP");
+        }
+        
+  } else { // button not pressed
+    butState_engageUp = 0;
   }
+
 
   // engage down
   if (reading_down != initButState_down &&
@@ -486,31 +469,77 @@ void loop() {
       reading_lowerEndSwitch == initButState_lowerEndSwitch &&
       stepValue != 0){
 
-        Serial.println("START");
-
-        count = 0; // count reset
-        countLimit = (stepValue+overCutValue)*convDown + tolerance;
-
-        enableDown = true;
-        interrupts();
-
-        while (enableDown == true){
-          digitalWrite(relayDown, HIGH);
-
-          if (digitalRead(butPin_lowerEndSwitch) != initButState_lowerEndSwitch){
-            enableDown = false;      
-          }
+        if (butState_engageDown == 0){
+            butState_engageDown = 1;
+            timeStamp_engageDown = millis();
+        }
+        if (millis() - timeStamp_engageDown > dly/2.5){        
+            Serial.println("START");
+            count = 0; // count reset
+            countLimit = (stepValue+overCutValue)*convDown + tolerance;   
+            enableDown = true;
+            interrupts();
+    
+            while (enableDown == true){
+                digitalWrite(relayDown, HIGH);
+                // upper endswitch release indication
+                lcd.setCursor(15,0);
+                lcd.write(byte(0));
+                // step engage indication                
+                lcd.setCursor(15,1);
+                lcd.write(byte(5));
+                
+                if (digitalRead(butPin_lowerEndSwitch) != initButState_lowerEndSwitch){
+                    enableDown = false;      
+                }
+            }
+            digitalWrite(relayDown, LOW);
+              
+            Serial.println(count);
+            Serial.println("STOP-DOWN");
         }
 
-      digitalWrite(relayDown, LOW);
-      
-      Serial.println(count);
-      Serial.println("STOP-DOWN");
+  } else { // button not pressed
+    butState_engageDown = 0;
   }
 
+// ******************************************************************************
+// ******************************************************************************
+// ******************************************************************************
 
+  // LCD DISPLAY OUTPUT
 
+  // step value display
+  sprintf(line0, "krok: %-4d mm", stepValue);
+  lcd.setCursor(0,0);
+  lcd.print(line0);
 
+  // step setting indicator
+  if (reading_stepSet != initButState_stepSet){
+        lcd.setCursor(14,0);
+        lcd.write(byte(6));
+  } else {
+        lcd.setCursor(14,0);
+        lcd.print(" ");
+  }
+
+  // up direction indication
+  if (reading_upperEndSwitch == initButState_upperEndSwitch){
+          lcd.setCursor(15,0);
+          lcd.write(byte(0));
+  } else if (reading_upperEndSwitch != initButState_upperEndSwitch) {
+          lcd.setCursor(15,0);
+          lcd.write(byte(1));
+  }
+
+  // down direction indication
+  if (reading_lowerEndSwitch == initButState_lowerEndSwitch){
+          lcd.setCursor(15,1);
+          lcd.write(byte(2));
+  } else if (reading_lowerEndSwitch != initButState_lowerEndSwitch) {
+          lcd.setCursor(15,1);
+          lcd.write(byte(3));
+  }
 
 // ******************************************************************************
 // ******************************************************************************
@@ -528,17 +557,14 @@ void loop() {
 // ******************************************************************************
 
   // ENCODER INTERRUPT HANDLER
-  
-  void encoderHandle()
-  {
-    count = count + 1;
-
-    if (count >= countLimit){
-      noInterrupts();
-      enableDown = false;
-      enableUp = false;
-    }
-            
+    
+  void encoderHandle() {
+      count = count + 1;
+      if (count >= countLimit){
+          noInterrupts();
+          enableDown = false;
+          enableUp = false;
+      }
   }
 
 // ******************************************************************************
